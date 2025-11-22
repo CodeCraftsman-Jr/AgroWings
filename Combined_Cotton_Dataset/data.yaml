@@ -1,0 +1,13 @@
+# Combined Cotton Dataset
+path: c:\Users\vasa\OneDrive\Desktop\Cotton Detection\Combined_Cotton_Dataset
+train: train/images
+val: valid/images
+test: test/images
+
+# Classes
+names:
+  0: cotton_ready
+  1: cotton_not_ready
+
+# Dataset Info
+nc: 2  # number of classes
