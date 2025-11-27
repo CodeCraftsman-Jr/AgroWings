@@ -2,3 +2,7 @@ ultralytics
 opencv-python
 numpy
 pillow
+pyserial
+scipy
+keyboard
+matplotlib
