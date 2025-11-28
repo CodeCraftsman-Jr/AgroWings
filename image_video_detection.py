@@ -10,11 +10,11 @@ from pathlib import Path
 from datetime import datetime
 
 # Configuration
-MODEL_PATH = r"c:\Users\vasa\OneDrive\Desktop\Cotton Detection\model\best.pt"
+MODEL_PATH = Path(__file__).parent / "model" / "best.pt"
 CONFIDENCE_THRESHOLD = 0.5
 
 # Output directory
-OUTPUT_DIR = r"c:\Users\vasa\OneDrive\Desktop\Cotton Detection\output"
+OUTPUT_DIR = Path(__file__).parent / "output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 def detect_in_image(model, image_path):

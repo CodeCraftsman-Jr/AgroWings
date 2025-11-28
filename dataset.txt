@@ -1,2 +1,0 @@
-https://universe.roboflow.com/cotton-detection-qisgw/cotton-detection-wlt6l/dataset/2
-
