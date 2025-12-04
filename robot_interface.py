@@ -37,7 +37,7 @@ class RobotInterface:
         
         # Current state
         self.current_position = np.array([0.0, 0.0, 150.0])  # Home position
-        self.current_gripper_state = True  # Open
+        self.gripper_open = True  # Track gripper state
         
         # Workspace boundaries (mm)
         self.workspace_bounds = {
@@ -119,7 +119,7 @@ class RobotInterface:
                 return False
         
         # Execute move
-        success = self.controller.move_to_position(target, self.current_gripper_state)
+        success = self.controller.move_to_position(target)
         
         if success:
             self.current_position = target
@@ -153,24 +153,30 @@ class RobotInterface:
         home = np.array([0.0, 0.0, 150.0])
         return self.move_to_target(home[0], home[1], home[2], check_safety=False)
     
-    def set_gripper(self, state: bool) -> bool:
+    def set_gripper(self, open_gripper: bool) -> bool:
         """
-        Set gripper state
+        Control gripper (servo 4)
         
         Args:
-            state: True = open, False = closed
+            open_gripper: True = open, False = closed
         
         Returns:
             True if successful
         """
-        self.current_gripper_state = state
-        success = self.controller.move_to_position(self.current_position, state)
+        angle = 0 if open_gripper else 180
         
-        status = "opened" if state else "closed"
+        # Get current arm position
+        tendon_lengths = self.kinematics.inverse_kinematics(self.current_position)
+        if tendon_lengths is None:
+            return False
+        servo_angles = self.kinematics.tendon_to_servo_angles(tendon_lengths)
+        
+        # Send command with gripper angle
+        success = self.controller.send_servo_command(servo_angles, gripper_angle=angle)
+        
         if success:
-            print(f"✓ Gripper {status}")
-        else:
-            print(f"✗ Failed to {status} gripper")
+            self.gripper_open = open_gripper
+            print(f"✓ Gripper {'opened' if open_gripper else 'closed'}")
         
         return success
     
@@ -246,7 +252,7 @@ class RobotInterface:
                 
                 # Gripper control
                 elif keyboard.is_pressed('g'):
-                    self.set_gripper(not self.current_gripper_state)
+                    self.set_gripper(not self.gripper_open)
                     time.sleep(0.3)
                 
                 # Home
@@ -258,6 +264,10 @@ class RobotInterface:
                 
         except KeyboardInterrupt:
             print("\nManual control interrupted")
+        finally:
+            # Ensure gripper is open
+            if not self.gripper_open:
+                self.set_gripper(True)
     
     def test_workspace(self, num_points: int = 10):
         """
@@ -345,7 +355,7 @@ class RobotInterface:
                 print(f"\rServo angles: S1:{servo_angles[0]:.0f}° S2:{servo_angles[1]:.0f}° S3:{servo_angles[2]:.0f}°", end='')
                 
                 # Send to Arduino
-                self.controller.send_servo_command(servo_angles, 0)
+                self.controller.send_servo_command(servo_angles)
                 
                 if keyboard.is_pressed('enter'):
                     break
@@ -382,24 +392,22 @@ if __name__ == "__main__":
     
     # Configuration
     MODEL_PATH = r"model\best.pt"
-    CALIBRATION_FILE = r"calibration_data\stereo_calibration.json"
     ARDUINO_PORT = "COM3"
+    USE_MOCK_HARDWARE = False  # Set to True for testing without hardware
     
     if not os.path.exists(MODEL_PATH):
         print(f"❌ Model not found: {MODEL_PATH}")
         exit(1)
-    
-    if not os.path.exists(CALIBRATION_FILE):
-        print(f"⚠ Calibration file not found")
-        CALIBRATION_FILE = None
     
     # Initialize controller
     from picking_controller import PickingController
     
     controller = PickingController(
         model_path=MODEL_PATH,
-        calibration_file=CALIBRATION_FILE,
-        arduino_port=ARDUINO_PORT
+        arduino_port=ARDUINO_PORT,
+        arduino_baud=115200,
+        camera_resolution=(640, 480),
+        use_mock_hardware=USE_MOCK_HARDWARE
     )
     
     # Create interface
@@ -414,12 +422,13 @@ if __name__ == "__main__":
         print("2. Test picking sequence")
         print("3. Manual control mode")
         print("4. Calibrate home position")
-        print("5. Move to home")
-        print("6. Emergency stop test")
-        print("7. Exit")
+        print("5. Test gripper")
+        print("6. Move to home")
+        print("7. Emergency stop test")
+        print("8. Exit")
         print("="*60)
         
-        choice = input("\nSelect option (1-7): ").strip()
+        choice = input("\nSelect option (1-8): ").strip()
         
         if choice == "1":
             interface.test_workspace(num_points=10)
@@ -430,11 +439,21 @@ if __name__ == "__main__":
         elif choice == "4":
             interface.calibrate_home_position()
         elif choice == "5":
-            interface.return_home()
+            print("\nTesting gripper...")
+            print("Opening...")
+            interface.set_gripper(True)
+            time.sleep(1)
+            print("Closing...")
+            interface.set_gripper(False)
+            time.sleep(1)
+            print("Opening...")
+            interface.set_gripper(True)
         elif choice == "6":
+            interface.return_home()
+        elif choice == "7":
             interface.emergency_stop()
             interface.reset_emergency_stop()
-        elif choice == "7":
+        elif choice == "8":
             print("\nExiting...")
             interface.return_home()
             controller.cleanup()

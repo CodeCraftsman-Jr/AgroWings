@@ -1,3 +1,4 @@
+# Core Dependencies (Windows/Linux/RPi)
 ultralytics
 opencv-python
 numpy
@@ -6,3 +7,13 @@ pyserial
 scipy
 keyboard
 matplotlib
+
+# Raspberry Pi Specific (Install only on RPi5, comment out on Windows)
+# picamera2
+# adafruit-circuitpython-vl53l5cx
+# adafruit-blinka
+# RPi.GPIO
+
+# Note: On Raspberry Pi 5, uncomment the lines above and install with:
+# sudo apt install -y python3-picamera2 python3-lgpio
+# pip3 install adafruit-circuitpython-vl53l5cx adafruit-blinka
